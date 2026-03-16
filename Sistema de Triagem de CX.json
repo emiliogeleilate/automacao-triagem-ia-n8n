@@ -1,0 +1,357 @@
+{
+  "name": "Sistema de Triagem de CX",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "triagem-pedidos",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "6158213c-6668-488a-8ec5-bc06b3a1a743",
+      "name": "Webhook",
+      "webhookId": "f13a7c3f-8fa8-462f-b0de-89c240a2bc78"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.item.json.body;\n\n\nif (!body.texto_pedido || !body.cliente_email) {\n  throw new Error(\"Dados obrigatórios ausentes: texto_pedido e cliente_email são necessários.\");\n}\n\nreturn {\n  cliente: body.cliente_nome || \"Cliente não identificado\",\n  email: body.cliente_email.toLowerCase().trim(),\n  relato: body.texto_pedido,\n  valor: body.valor_total || 0,\n  data_recebimento: new Date().toLocaleString('pt-BR', { timeZone: 'America/Fortaleza' }),\n  status_validacao: \"Aprovado\"\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "9818aa9e-94a9-4f06-9720-acdf2cbcddad",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $node[\"AI Agent\"].json[\"output\"][\"urgencia\"] }}",
+                    "rightValue": 4,
+                    "operator": {
+                      "type": "number",
+                      "operation": "gte"
+                    },
+                    "id": "0e7047ce-88b8-4245-9cf8-90c2d1848135"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        992,
+        0
+      ],
+      "id": "8e384d94-b318-4de4-b140-1e5138f616f9",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Aja como um Analista de CX. Analise o relato: '{{ $node[\"Code in JavaScript\"].json[\"relato\"] }}'. Gere um JSON com: 'sentimento', 'urgencia' (1-5) e 'resumo'. Retorne APENAS o JSON.",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        416,
+        0
+      ],
+      "id": "3bde2f51-c204-4fbd-9ce6-c55759c8317c",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        272,
+        208
+      ],
+      "id": "b549607d-3af3-4de6-8945-9af2ab8da72f",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "MAK1qsjhnBojQ3Cd",
+          "name": "Google Gemini(PaLM) Api account 7"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"sentimento\": \"Crítico\",\n  \"urgencia\": 5,\n  \"resumo\": \"O cliente relatou uma falha total no sistema.\"\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        592,
+        208
+      ],
+      "id": "a14cc4c6-77ea-430b-9227-ee81f1d7459d",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        592,
+        384
+      ],
+      "id": "9962ec59-287b-4624-b6f1-0ad9e6aa9ffe",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "MAK1qsjhnBojQ3Cd",
+          "name": "Google Gemini(PaLM) Api account 7"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "emiliogeleilatef@gmail.com",
+        "subject": "=🚨 Urgência {{ $node[\"AI Agent\"].json[\"output\"][\"urgencia\"] }} - Cliente: {{ $node[\"Code in JavaScript\"].json[\"cliente\"] }}",
+        "emailType": "text",
+        "message": "Uma nova reclamação foi classificada como crítica pelo sistema de triagem automática.  Detalhes do Caso:  Cliente: {{ $node[\"Code in JavaScript\"].json[\"cliente\"] }}  E-mail: {{ $node[\"Code in JavaScript\"].json[\"email\"] }}  Nível de Urgência: {{ $node[\"AI Agent\"].json[\"output\"][\"urgencia\"] }}/5  Sentimento Identificado: {{ $node[\"AI Agent\"].json[\"output\"][\"sentimento\"] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1216,
+        0
+      ],
+      "id": "ed466f82-d10c-4e49-aee3-09a8df84e353",
+      "name": "Send a message",
+      "webhookId": "07fcb914-78b9-4fbe-bcc9-0265b8fd59d2",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "oMCCAJJmLsWdFTSO",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "158L03xpolNee_4SNyzdMYkAjcAB0Aix0rXnnJhYtzuk",
+          "mode": "list",
+          "cachedResultName": "Análise de emoções",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/158L03xpolNee_4SNyzdMYkAjcAB0Aix0rXnnJhYtzuk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Análise de sentimento feita pela IA": "={{ $json.output.sentimento }}",
+            "Feedback": "={{ $json.output.resumo }}",
+            "Urgência": "={{ $json.output.urgencia }}"
+          },
+          "matchingColumns": [
+            "Análise de sentimento feita pela IA"
+          ],
+          "schema": [
+            {
+              "id": "Urgência",
+              "displayName": "Urgência",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Feedback",
+              "displayName": "Feedback",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Análise de sentimento feita pela IA",
+              "displayName": "Análise de sentimento feita pela IA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        768,
+        0
+      ],
+      "id": "71982419-8034-4cd8-82eb-d87e58131895",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "2LIWlI9z2vP8wDpq",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "9ad9835a-d232-4da3-b768-f950c432916b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7c797c437c9f3e9b380f9b613c25fd9f7f6a59d342736eddafb469c97eb320f6"
+  },
+  "id": "r4Avfv7WpVZoSEmJ",
+  "tags": []
+}
