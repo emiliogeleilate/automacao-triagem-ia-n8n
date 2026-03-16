@@ -12,5 +12,5 @@ Tecnologias Utilizadas
 A Solução
 
 O fluxo recebe dados via **Webhook**, processa o texto através de um modelo de linguagem (LLM) que identifica o sentimento do cliente e atribui uma nota de urgência de 1 a 5. 
-1. **Casos Críticos (Urgência >= 4):** Disparam um alerta imediato via e-mail para a equipe de suporte.
-2. **Todos os Casos:** São registrados automaticamente em uma planilha para posterior análise de BI.
+* **Casos Críticos (Urgência >= 4):** Disparam um alerta imediato via e-mail para a equipe de suporte.
+* **Todos os Casos:** São registrados automaticamente em uma planilha para posterior análise de BI.
